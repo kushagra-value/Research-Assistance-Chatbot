@@ -1,0 +1,14 @@
+langchain_chroma
+langchain
+ipykernel
+langchain_openai
+python-dotenv
+langchain_community
+langchain_core
+streamlit
+langchain_groq
+langchain_huggingface
+langchain_text_splitters
+protobuf<=3.20.3
+pypdf
+faiss-cpu
