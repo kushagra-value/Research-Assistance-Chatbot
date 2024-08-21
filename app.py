@@ -26,6 +26,34 @@ st.write("Upload PDFs and chat with their content")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
+# Custom CSS for download button styling
+st.markdown("""
+    <style>
+    .pdf-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .download-button {
+        background-color: transparent;
+        border: none;
+        color: #007bff;
+        cursor: pointer;
+    }
+    .download-button:hover {
+        color: #0056b3;
+    }
+    .download-button:focus {
+        outline: none;
+    }
+    .icon {
+        width: 20px;
+        height: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Main content and sidebar
 col1, col2 = st.columns([2, 1])
 
@@ -146,11 +174,18 @@ with col2:
         for pdf in pdf_files:
             file_path = os.path.join("pdfs", pdf)
             with open(file_path, "rb") as file:
-                st.download_button(
-                    label=f"Download {pdf}",
-                    data=file,
-                    file_name=pdf,
-                    mime="application/pdf"
+                st.markdown(
+                    f"""
+                    <div class="pdf-row">
+                        <span>{pdf}</span>
+                        <form action="{file_path}" method="get">
+                            <button class="download-button" title="Download {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                            </button>
+                        </form>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
                 )
     else:
         st.write("No PDFs available.")
