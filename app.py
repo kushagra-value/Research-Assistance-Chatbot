@@ -26,7 +26,7 @@ st.write("Upload PDFs and chat with their content")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for download button styling
+# Custom CSS for button styling
 st.markdown("""
     <style>
     .pdf-row {
@@ -35,16 +35,20 @@ st.markdown("""
         align-items: center;
         margin-bottom: 10px;
     }
-    .download-button {
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+    }
+    .download-button, .delete-button {
         background-color: transparent;
         border: none;
         color: #007bff;
         cursor: pointer;
     }
-    .download-button:hover {
+    .download-button:hover, .delete-button:hover {
         color: #0056b3;
     }
-    .download-button:focus {
+    .download-button:focus, .delete-button:focus {
         outline: none;
     }
     .icon {
@@ -178,11 +182,16 @@ with col2:
                     f"""
                     <div class="pdf-row">
                         <span>{pdf}</span>
-                        <form action="{file_path}" method="get">
-                            <button class="download-button" title="Download {pdf}">
-                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                        <div class="action-buttons">
+                            <form action="{file_path}" method="get">
+                                <button class="download-button" title="Download {pdf}">
+                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                                </button>
+                            </form>
+                            <button class="delete-button" title="Delete {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
                             </button>
-                        </form>
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True
