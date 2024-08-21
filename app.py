@@ -39,13 +39,14 @@ st.markdown("""
         gap: 5px;
     }
     .download-button, .delete-button {
-        background-color: transparent;
+        background-color: grey;
         border: none;
-        color: #007bff;
+        color: white;
         cursor: pointer;
     }
     .download-button:hover, .delete-button:hover {
-        color: #0056b3;
+        background-color: red;
+        color: white;
     }
     .download-button:focus, .delete-button:focus {
         outline: none;
