@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS  # Updated import
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -11,7 +11,6 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 import os
-import io
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -105,27 +104,20 @@ with st.sidebar:
     session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
-    # Display chat history based on selected session
+    # Download button for the selected session
     if selected_session:
-        if st.button("Download Session"):
-            session_history = st.session_state.store.get(selected_session, None)
-            if session_history:
-                chat_data = "\n".join([f"{msg.role.capitalize()}: {msg.content}" for msg in session_history.messages])
-                st.download_button(
-                    label="Download Chat",
-                    data=io.BytesIO(chat_data.encode()).getvalue(),
-                    file_name=f"{selected_session}_chat.txt",
-                    mime="text/plain"
-                )
-        st.subheader(f"Session: {selected_session}")
         history = st.session_state.store.get(selected_session, None)
         if history:
-            for message in history.messages:
-                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
-                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
-                st.write(f"{role.capitalize()}: {content}")
+            # Convert history to a text format
+            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            st.download_button(
+                label="Download Session",
+                data=session_text,
+                file_name=f"{selected_session}_chat_history.txt",
+                mime="text/plain",
+            )
         else:
-            st.write("No chat history available.")
+            st.write("No chat history available for download.")
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
