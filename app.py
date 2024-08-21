@@ -58,23 +58,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Sidebar for chat history and available PDFs
+# Sidebar for available PDFs and chat history
 with st.sidebar:
-    st.header("Chat History")
-    # Display chat history
-    if 'store' in st.session_state:
-        for session_id, history in st.session_state.store.items():
-            st.subheader(f"Session: {session_id}")
-            for message in history.messages:
-                # Access attributes directly based on the actual structure
-                # Replace `message.role` and `message.content` with the correct attributes
-                # e.g., `message.get('role')` and `message.get('content')`
-                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
-                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
-                st.write(f"{role.capitalize()}: {content}")
-    else:
-        st.write("No chat history available.")
-
     st.header("Available PDFs")
     with st.expander("Manage PDFs", expanded=True):
         # Upload PDFs in the expandable section
@@ -113,6 +98,24 @@ with st.sidebar:
                 )
         else:
             st.write("No PDFs available.")
+
+    st.header("Chat History")
+    # Dropdown for selecting session
+    session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
+    selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
+
+    # Display chat history based on selected session
+    if selected_session:
+        st.subheader(f"Session: {selected_session}")
+        history = st.session_state.store.get(selected_session, None)
+        if history:
+            for message in history.messages:
+                # Access attributes based on the actual structure
+                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
+                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
+                st.write(f"{role.capitalize()}: {content}")
+        else:
+            st.write("No chat history available.")
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
