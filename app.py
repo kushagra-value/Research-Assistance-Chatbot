@@ -25,7 +25,7 @@ st.title("Research Assistance Chatbot")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for button styling and sidebar toggle
+# Custom CSS for button styling, sidebar toggle, and hiding default toggle buttons
 st.markdown("""
     <style>
     .pdf-row {
@@ -54,11 +54,34 @@ st.markdown("""
         width: 20px;
         height: 20px;
     }
+    /* Hide default Streamlit sidebar toggle buttons */
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
+    /* Custom hamburger icon */
     .sidebar-toggle {
         cursor: pointer;
         margin-bottom: 10px;
     }
     </style>
+""", unsafe_allow_html=True)
+
+# Custom JavaScript to handle sidebar toggle
+st.markdown("""
+    <script>
+    const toggleButton = document.querySelector('.sidebar-toggle');
+    const sidebar = document.querySelector('section[data-testid="stSidebar"]');
+    let sidebarVisible = true;
+
+    toggleButton.addEventListener('click', function() {
+        if (sidebarVisible) {
+            sidebar.style.transform = 'translateX(-100%)';
+        } else {
+            sidebar.style.transform = 'translateX(0)';
+        }
+        sidebarVisible = !sidebarVisible;
+    });
+    </script>
 """, unsafe_allow_html=True)
 
 # Sidebar for available PDFs and chat history
