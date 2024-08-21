@@ -66,9 +66,11 @@ with st.sidebar:
         for session_id, history in st.session_state.store.items():
             st.subheader(f"Session: {session_id}")
             for message in history.messages:
-                # Access attributes directly
-                role = message.role
-                content = message.content
+                # Access attributes directly based on the actual structure
+                # Replace `message.role` and `message.content` with the correct attributes
+                # e.g., `message.get('role')` and `message.get('content')`
+                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
+                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
                 st.write(f"{role.capitalize()}: {content}")
     else:
         st.write("No chat history available.")
