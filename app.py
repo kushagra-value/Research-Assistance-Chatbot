@@ -20,8 +20,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Set up Streamlit layout
 st.set_page_config(layout="wide")
-st.title("Conversational RAG With PDF Uploads and Chat History")
-st.write("Upload PDFs and chat with their content")
+st.title("Research Assistance Chatbot")
 
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
