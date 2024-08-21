@@ -105,7 +105,7 @@ with st.sidebar:
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
     # Download button for the selected session
-    if selected_session and st.button("Download Session"):
+    if selected_session:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
