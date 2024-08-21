@@ -20,8 +20,8 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Set up Streamlit layout
 st.set_page_config(layout="wide")
-st.title("Research Assistance Chatbot ")
-# st.write("Upload PDFs and chat with their content")
+st.title("Conversational RAG With PDF Uploads and Chat History")
+st.write("Upload PDFs and chat with their content")
 
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
@@ -58,10 +58,60 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Main content and sidebar
+# Sidebar for chat history and available PDFs
+with st.sidebar:
+    st.header("Chat History")
+    # Display chat history
+    if 'store' in st.session_state:
+        for session_id, history in st.session_state.store.items():
+            st.subheader(f"Session: {session_id}")
+            for message in history.messages:
+                st.write(f"{message['role'].capitalize()}: {message['content']}")
+    else:
+        st.write("No chat history available.")
+
+    st.header("Available PDFs")
+    with st.expander("Manage PDFs", expanded=True):
+        # Upload PDFs in the expandable section
+        uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
+
+        # Process and save uploaded PDFs to the "pdfs" folder
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join("pdfs", uploaded_file.name)
+                with open(file_path, "wb") as file:
+                    file.write(uploaded_file.getvalue())
+            st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
+
+        # Display and download PDFs alphabetically
+        pdf_files = sorted(os.listdir("pdfs"))
+        if pdf_files:
+            for pdf in pdf_files:
+                file_path = os.path.join("pdfs", pdf)
+                st.markdown(
+                    f"""
+                    <div class="pdf-row">
+                        <span>{pdf}</span>
+                        <div class="action-buttons">
+                            <a href="{file_path}" download="{pdf}">
+                                <button class="download-button" title="Download {pdf}">
+                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                                </button>
+                            </a>
+                            <button class="delete-button" title="Delete {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
+                            </button>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.write("No PDFs available.")
+
+# Main content (right column)
 col1, col2 = st.columns([2, 1])
 
-# Main content (left column)
 with col1:
     if api_key:
         llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
@@ -156,43 +206,3 @@ with col1:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
         st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
-
-# Sidebar (right column)
-with col2:
-    with st.expander("Available PDFs", expanded=True):
-        # Upload PDFs in the expandable section
-        uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
-
-        # Process and save uploaded PDFs to the "pdfs" folder
-        if uploaded_files:
-            for uploaded_file in uploaded_files:
-                file_path = os.path.join("pdfs", uploaded_file.name)
-                with open(file_path, "wb") as file:
-                    file.write(uploaded_file.getvalue())
-            st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
-
-        # Display and download PDFs alphabetically
-        pdf_files = sorted(os.listdir("pdfs"))
-        if pdf_files:
-            for pdf in pdf_files:
-                file_path = os.path.join("pdfs", pdf)
-                st.markdown(
-                    f"""
-                    <div class="pdf-row">
-                        <span>{pdf}</span>
-                        <div class="action-buttons">
-                            <a href="{file_path}" download="{pdf}">
-                                <button class="download-button" title="Download {pdf}">
-                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
-                                </button>
-                            </a>
-                            <button class="delete-button" title="Delete {pdf}">
-                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
-                            </button>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        else:
-            st.write("No PDFs available.")
