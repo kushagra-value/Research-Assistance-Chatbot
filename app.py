@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS  # Updated import
+from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -105,7 +105,7 @@ with st.sidebar:
     session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
-    # Download session button
+    # Display chat history based on selected session
     if selected_session:
         if st.button("Download Session"):
             session_history = st.session_state.store.get(selected_session, None)
@@ -117,18 +117,15 @@ with st.sidebar:
                     file_name=f"{selected_session}_chat.txt",
                     mime="text/plain"
                 )
-        # Display chat history based on selected session
-        if selected_session:
-            st.subheader(f"Session: {selected_session}")
-            history = st.session_state.store.get(selected_session, None)
-            if history:
-                for message in history.messages:
-                    # Access attributes based on the actual structure
-                    role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
-                    content = getattr(message, 'content', 'No content')  # Use default if attribute not found
-                    st.write(f"{role.capitalize()}: {content}")
-            else:
-                st.write("No chat history available.")
+        st.subheader(f"Session: {selected_session}")
+        history = st.session_state.store.get(selected_session, None)
+        if history:
+            for message in history.messages:
+                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
+                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
+                st.write(f"{role.capitalize()}: {content}")
+        else:
+            st.write("No chat history available.")
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
