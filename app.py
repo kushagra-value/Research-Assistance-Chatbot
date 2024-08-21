@@ -23,8 +23,8 @@ st.set_page_config(layout="wide")
 st.title("Conversational RAG With PDF Uploads and Chat History")
 st.write("Upload PDFs and chat with their content")
 
-# Input the Groq API Key
-api_key = st.text_input("Enter your Groq API key:", type="password")
+# Retrieve Groq API Key from environment variable
+api_key = os.getenv("GROQ_API_KEY")
 
 # Main content and sidebar
 col1, col2 = st.columns([2, 1])
@@ -123,7 +123,7 @@ with col1:
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
-        st.warning("Please enter the Groq API Key")
+        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
 
 # Sidebar (right column)
 with col2:
@@ -141,9 +141,9 @@ with col2:
         st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
 
     # Display and download PDFs alphabetically
+    pdf_files = sorted(os.listdir("pdfs"))
     if pdf_files:
-        pdf_files_sorted = sorted(os.listdir("pdfs"))
-        for pdf in pdf_files_sorted:
+        for pdf in pdf_files:
             file_path = os.path.join("pdfs", pdf)
             with open(file_path, "rb") as file:
                 st.download_button(
