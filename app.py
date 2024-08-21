@@ -209,7 +209,6 @@ with col1:
                     },
                 )
                 st.write("Assistant:", response['answer'])
-                st.write("Chat History:", session_history.messages)
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
