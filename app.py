@@ -171,30 +171,3 @@ with col2:
             with open(file_path, "wb") as file:
                 file.write(uploaded_file.getvalue())
         st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
-
-    # Display and download PDFs alphabetically
-    pdf_files = sorted(os.listdir("pdfs"))
-    if pdf_files:
-        for pdf in pdf_files:
-            file_path = os.path.join("pdfs", pdf)
-            with open(file_path, "rb") as file:
-                st.markdown(
-                    f"""
-                    <div class="pdf-row">
-                        <span>{pdf}</span>
-                        <div class="action-buttons">
-                            <form action="{file_path}" method="get">
-                                <button class="download-button" title="Download {pdf}">
-                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
-                                </button>
-                            </form>
-                            <button class="delete-button" title="Delete {pdf}">
-                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
-                            </button>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-    else:
-        st.write("No PDFs available.")
