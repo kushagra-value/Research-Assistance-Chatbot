@@ -20,8 +20,8 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Set up Streamlit layout
 st.set_page_config(layout="wide")
-st.title("Conversational RAG With PDF Uploads and Chat History")
-st.write("Upload PDFs and chat with their content")
+st.title("Research Assistance Chatbot ")
+# st.write("Upload PDFs and chat with their content")
 
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
@@ -159,21 +159,18 @@ with col1:
 
 # Sidebar (right column)
 with col2:
-    st.header("Available PDFs")
+    with st.expander("Available PDFs", expanded=True):
+        # Upload PDFs in the expandable section
+        uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
 
-    # Upload PDFs in the right column
-    uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
+        # Process and save uploaded PDFs to the "pdfs" folder
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join("pdfs", uploaded_file.name)
+                with open(file_path, "wb") as file:
+                    file.write(uploaded_file.getvalue())
+            st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
 
-    # Process and save uploaded PDFs to the "pdfs" folder
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            file_path = os.path.join("pdfs", uploaded_file.name)
-            with open(file_path, "wb") as file:
-                file.write(uploaded_file.getvalue())
-        st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
-
-    # Expandable section for available PDFs
-    with st.expander("Show Available PDFs", expanded=True):
         # Display and download PDFs alphabetically
         pdf_files = sorted(os.listdir("pdfs"))
         if pdf_files:
