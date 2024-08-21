@@ -171,3 +171,31 @@ with col2:
             with open(file_path, "wb") as file:
                 file.write(uploaded_file.getvalue())
         st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
+
+    # Expandable section for available PDFs
+    with st.expander("Show Available PDFs", expanded=True):
+        # Display and download PDFs alphabetically
+        pdf_files = sorted(os.listdir("pdfs"))
+        if pdf_files:
+            for pdf in pdf_files:
+                file_path = os.path.join("pdfs", pdf)
+                st.markdown(
+                    f"""
+                    <div class="pdf-row">
+                        <span>{pdf}</span>
+                        <div class="action-buttons">
+                            <a href="{file_path}" download="{pdf}">
+                                <button class="download-button" title="Download {pdf}">
+                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                                </button>
+                            </a>
+                            <button class="delete-button" title="Delete {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
+                            </button>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.write("No PDFs available.")
