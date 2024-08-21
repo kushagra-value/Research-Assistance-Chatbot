@@ -21,12 +21,11 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 # Set up Streamlit layout
 st.set_page_config(layout="wide")
 st.title("Research Assistance Chatbot")
-# st.write("Upload PDFs and chat with their content")
 
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for button styling
+# Custom CSS for button styling and sidebar toggle
 st.markdown("""
     <style>
     .pdf-row {
@@ -55,11 +54,20 @@ st.markdown("""
         width: 20px;
         height: 20px;
     }
+    .sidebar-toggle {
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # Sidebar for available PDFs and chat history
 with st.sidebar:
+    st.markdown(
+        '<div class="sidebar-toggle"><img class="icon" src="https://img.icons8.com/material-outlined/24/000000/menu--v1.png"/></div>',
+        unsafe_allow_html=True,
+    )
+
     st.header("Available PDFs")
     with st.expander("Manage PDFs", expanded=True):
         # Upload PDFs in the expandable section
