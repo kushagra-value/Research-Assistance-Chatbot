@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS  # Updated import
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -61,32 +61,63 @@ st.markdown("""
 # Sidebar for available PDFs and chat history
 with st.sidebar:
     st.header("Available PDFs")
-    # Display available PDFs with download and delete options
-    pdf_files = sorted([f for f in os.listdir("pdfs") if f.endswith(".pdf")])
-    if pdf_files:
-        for pdf_file in pdf_files:
-            pdf_name = os.path.basename(pdf_file)
-            st.write(f"{pdf_name}")
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.button("Download", key=f"download_{pdf_name}", help="Download PDF")
-            with col2:
-                st.button("Delete", key=f"delete_{pdf_name}", help="Delete PDF")
-    
-    st.header("Chat History")
-    # Tabs for chat history sessions
-    session_tabs = st.selectbox("Select a session:", list(st.session_state.store.keys()) + ["None"])
-    
-    if session_tabs and session_tabs != "None":
-        history = st.session_state.store.get(session_tabs, [])
-        if history:
-            with st.expander(f"Session: {session_tabs}"):
-                for message in history.messages:
-                    role = message.role.capitalize()
-                    content = message.content
-                    st.write(f"{role}: {content}")
+    with st.expander("Manage PDFs", expanded=True):
+        # Upload PDFs in the expandable section
+        uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
 
-# Main content (left column)
+        # Process and save uploaded PDFs to the "pdfs" folder
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join("pdfs", uploaded_file.name)
+                with open(file_path, "wb") as file:
+                    file.write(uploaded_file.getvalue())
+            st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
+
+        # Display and download PDFs alphabetically
+        pdf_files = sorted(os.listdir("pdfs"))
+        if pdf_files:
+            for pdf in pdf_files:
+                file_path = os.path.join("pdfs", pdf)
+                st.markdown(
+                    f"""
+                    <div class="pdf-row">
+                        <span>{pdf}</span>
+                        <div class="action-buttons">
+                            <a href="{file_path}" download="{pdf}">
+                                <button class="download-button" title="Download {pdf}">
+                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                                </button>
+                            </a>
+                            <button class="delete-button" title="Delete {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
+                            </button>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.write("No PDFs available.")
+
+    st.header("Chat History")
+    # Dropdown for selecting session
+    session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
+    selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
+
+    # Display chat history based on selected session
+    if selected_session:
+        st.subheader(f"Session: {selected_session}")
+        history = st.session_state.store.get(selected_session, None)
+        if history:
+            for message in history.messages:
+                # Access attributes based on the actual structure
+                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
+                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
+                st.write(f"{role.capitalize()}: {content}")
+        else:
+            st.write("No chat history available.")
+
+# Main content (right column)
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -177,3 +208,9 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
+                st.write("Assistant:", response['answer'])
+                st.write("Chat History:", session_history.messages)
+        else:
+            st.warning("No PDFs available in the 'pdfs' folder.")
+    else:
+        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
