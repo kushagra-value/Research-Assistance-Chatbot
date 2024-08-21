@@ -116,6 +116,17 @@ with st.sidebar:
                 st.write(f"{role.capitalize()}: {content}")
         else:
             st.write("No chat history available.")
+        
+        # Add download button
+        if st.button("Download Session Chat"):
+            chat_log = "\n".join([f"{getattr(m, 'role', 'unknown').capitalize()}: {getattr(m, 'content', 'No content')}" 
+                                  for m in history.messages])
+            st.download_button(
+                label="Download Chat Log",
+                data=chat_log,
+                file_name=f"{selected_session}_chat_log.txt",
+                mime="text/plain"
+            )
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
