@@ -104,29 +104,20 @@ with st.sidebar:
     session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
-    # Display chat history based on selected session
-    if selected_session:
-        st.subheader(f"Session: {selected_session}")
+    # Download button for the selected session
+    if selected_session and st.button("Download Session"):
         history = st.session_state.store.get(selected_session, None)
         if history:
-            for message in history.messages:
-                # Access attributes based on the actual structure
-                role = getattr(message, 'role', 'unknown')  # Use default if attribute not found
-                content = getattr(message, 'content', 'No content')  # Use default if attribute not found
-                st.write(f"{role.capitalize()}: {content}")
-        else:
-            st.write("No chat history available.")
-        
-        # Add download button
-        if st.button("Download Session Chat"):
-            chat_log = "\n".join([f"{getattr(m, 'role', 'unknown').capitalize()}: {getattr(m, 'content', 'No content')}" 
-                                  for m in history.messages])
+            # Convert history to a text format
+            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
             st.download_button(
-                label="Download Chat Log",
-                data=chat_log,
-                file_name=f"{selected_session}_chat_log.txt",
-                mime="text/plain"
+                label="Download Session",
+                data=session_text,
+                file_name=f"{selected_session}_chat_history.txt",
+                mime="text/plain",
             )
+        else:
+            st.write("No chat history available for download.")
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
