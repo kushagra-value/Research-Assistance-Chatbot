@@ -126,7 +126,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{msg.__class__.__name__}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{msg.get('type', 'unknown')}: {msg.get('content', 'No content')}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -241,7 +241,7 @@ with col1:
                 # Update chat display
                 chat_html = ""
                 for message in session_history.messages:
-                    role = "user" if getattr(message, '__class__.__name__', None) == 'HumanMessage' else 'assistant'
-                    chat_html += f"<div class='chat-message {'user-message' if role == 'user' else 'assistant-message'}'>{message.content}</div>"
+                    role = message.get('type', 'unknown')
+                    chat_html += f"<div class='chat-message {'user-message' if role == 'user' else 'assistant-message'}'>{message.get('content', 'No content')}</div>"
 
                 chat_container.markdown(f"<div class='chat-container'>{chat_html}</div>", unsafe_allow_html=True)
