@@ -204,8 +204,8 @@ with col1:
             user_input = st.text_input("Your question:")
             if user_input:
                 session_history = get_session_history(session_id)
-                # Append the user's input to the chat history
-                session_history.add_message(role="user", content=user_input)
+                # Use the appropriate method to add messages to the history
+                session_history.add_message({'role': 'user', 'content': user_input})
                 response = conversational_rag_chain.invoke(
                     {"input": user_input},
                     config={
@@ -214,7 +214,7 @@ with col1:
                 )
                 # Display the response and add it to the chat history
                 st.write("Assistant:", response['answer'])
-                session_history.add_message(role="assistant", content=response['answer'])
+                session_history.add_message({'role': 'assistant', 'content': response['answer']})
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
