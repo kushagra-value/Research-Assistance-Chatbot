@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS  # Updated import
+from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -207,9 +207,7 @@ with col1:
                 output_messages_key="answer"
             )
 
-            # Conversational chat interface
-            user_input = st.chat_input("Ask a question...")
-
+            user_input = st.text_input("Your question:")
             if user_input:
                 session_history = get_session_history(session_id)
                 response = conversational_rag_chain.invoke(
@@ -218,14 +216,9 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
-                session_history.add("user", user_input)
-                session_history.add("assistant", response['answer'])
-
-            # Display chat history in a conversational style
-            if session_id in st.session_state.store:
-                for message in st.session_state.store[session_id].messages:
-                    st.chat_message(message.role, message.content)
-
+                session_history.append_message("user", user_input)
+                session_history.append_message("assistant", response['answer'])
+                st.write("Assistant:", response['answer'])
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
