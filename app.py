@@ -116,8 +116,14 @@ with st.sidebar:
                 file_name=f"{selected_session}_chat_history.txt",
                 mime="text/plain",
             )
+
+            # Display session history directly below the download button
+            st.subheader("Session History")
+            st.text_area("Chat History", session_text, height=200, disabled=True)  # Displaying as a text area for better readability
         else:
             st.write("No chat history available for download.")
+    else:
+        st.write("No chat session selected.")
 
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
