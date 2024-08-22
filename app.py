@@ -153,17 +153,14 @@ with col1:
             question_answer_chain = RetrievalQA(
                 llm=llm,
                 retriever=retriever,
-                prompt=prompt_template
+                combine_docs_chain=prompt_template
             )
 
             # Manage history and responses
             def conversational_rag_chain(input_text: str, session_id: str):
                 session_history = get_session_history(session_id)
                 # Simulate retrieval and QA chain
-                response = question_answer_chain.run({
-                    "context": "Context from retriever",
-                    "input": input_text
-                })
+                response = question_answer_chain({"context": "Context from retriever", "input": input_text})
                 session_history.add_user_message(input_text)
                 session_history.add_ai_message(response)
                 return response
