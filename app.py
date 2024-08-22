@@ -221,7 +221,3 @@ with col1:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
         st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
-
-
-here in this for chat bot ui use
-chat_input method to make it conversational
