@@ -1,103 +1,223 @@
-import streamlit as st
-from pathlib import Path
-from langchain.agents import create_sql_agent
-from langchain.sql_database import SQLDatabase
-from langchain.agents.agent_types import AgentType
-from langchain.callbacks import StreamlitCallbackHandler
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
-from sqlalchemy import create_engine
-import sqlite3
-from langchain_groq import ChatGroq
-import pandas as pd
-from dotenv import load_dotenv
 import os
+import streamlit as st
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.vectorstores import FAISS
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_groq import ChatGroq
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
 
-# Load environment variables from .env file
-load_dotenv()
+# Ensure the pdfs folder exists
+os.makedirs("pdfs", exist_ok=True)
 
-# Get Groq API key from environment variable
+# Set up embeddings
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+# Set up Streamlit layout
+st.set_page_config(layout="wide")
+st.title("Research Assistance Chatbot")
+
+# Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Setting up the page configuration with title and icon
-st.set_page_config(page_title="LangChain: Chat with SQL DB", page_icon="🦜")
+# Custom CSS for button styling
+st.markdown("""
+    <style>
+    .pdf-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+    }
+    .download-button, .delete-button {
+        background-color: grey;
+        border: none;
+        color: white;
+        cursor: pointer;
+    }
+    .download-button:hover, .delete-button:hover {
+        background-color: red;
+        color: white;
+    }
+    .download-button:focus, .delete-button:focus {
+        outline: none;
+    }
+    .icon {
+        width: 20px;
+        height: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Setting up the title of the app
-st.title("🦜 LangChain: Chat with SQL DB")
+# Sidebar for available PDFs and chat history
+with st.sidebar:
+    st.header("Available PDFs")
+    with st.expander("Manage PDFs", expanded=True):
+        # Upload PDFs in the expandable section
+        uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
 
-# Database connection options
-LOCALDB = "USE_LOCALDB"
-MYSQL = "USE_MYSQL"
-radio_opt = ["Use SQLite 3 Database - analytics_db"]
+        # Process and save uploaded PDFs to the "pdfs" folder
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join("pdfs", uploaded_file.name)
+                with open(file_path, "wb") as file:
+                    file.write(uploaded_file.getvalue())
+            st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
 
-# Sidebar options for database selection
-selected_opt = st.sidebar.radio(label="Choose the DB you want to chat with", options=radio_opt)
+        # Display and download PDFs alphabetically
+        pdf_files = sorted(os.listdir("pdfs"))
+        if pdf_files:
+            for pdf in pdf_files:
+                file_path = os.path.join("pdfs", pdf)
+                st.markdown(
+                    f"""
+                    <div class="pdf-row">
+                        <span>{pdf}</span>
+                        <div class="action-buttons">
+                            <a href="{file_path}" download="{pdf}">
+                                <button class="download-button" title="Download {pdf}">
+                                    <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/download--v1.png"/>
+                                </button>
+                            </a>
+                            <button class="delete-button" title="Delete {pdf}">
+                                <img class="icon" src="https://img.icons8.com/material-outlined/24/000000/delete-sign.png"/>
+                            </button>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.write("No PDFs available.")
 
-# Info messages if API key is not provided
-if not api_key:
-    st.error("GROQ_API_KEY not found in .env file")
+    st.header("Chat History")
+    # Dropdown for selecting session
+    session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
+    selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
-# Initialize the Groq LLM
-llm = ChatGroq(groq_api_key=api_key, model_name="Llama3-8b-8192", streaming=True)
+    # Download button for the selected session
+    if selected_session:
+        history = st.session_state.store.get(selected_session, None)
+        if history:
+            # Convert history to a text format
+            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            st.download_button(
+                label="Download Session",
+                data=session_text,
+                file_name=f"{selected_session}_chat_history.txt",
+                mime="text/plain",
+            )
+        else:
+            st.write("No chat history available for download.")
 
-# Function to configure SQLite database
-@st.cache_resource(ttl="2h")
-def configure_db():
-    dbfilepath = (Path(__file__).parent / "analytics_db").absolute()
-    creator = lambda: sqlite3.connect(f"file:{dbfilepath}?mode=ro", uri=True)
-    return SQLDatabase(create_engine("sqlite:///", creator=creator))
+# Main content (right column)
+col1, col2 = st.columns([2, 1])
 
-# Configure DB
-db = configure_db()
+with col1:
+    if api_key:
+        llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
 
-# SQL toolkit
-toolkit = SQLDatabaseToolkit(db=db, llm=llm)  # Directly pass llm object
+        # Chat interface
+        session_id = st.text_input("Session ID", value="default_session")
 
-# Creating an agent with SQL DB and Groq LLM
-agent = create_sql_agent(
-    llm=llm,  # Pass llm directly
-    toolkit=toolkit,
-    verbose=True,
-    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
-)
+        # Statefully manage chat history
+        if 'store' not in st.session_state:
+            st.session_state.store = {}
 
-# Session state for messages (clear button available)
-if "messages" not in st.session_state or st.sidebar.button("Clear message history"):
-    st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
+        # Load all PDFs from the "pdfs" folder
+        pdf_files = sorted([os.path.join("pdfs", f) for f in os.listdir("pdfs") if f.endswith(".pdf")])
 
-# Function to add messages to the chat history
-def add_message_to_history(role, content):
-    st.session_state["messages"].append({"role": role, "content": content})
+        if pdf_files:
+            documents = []
+            for pdf_file in pdf_files:
+                loader = PyPDFLoader(pdf_file)
+                docs = loader.load()
+                documents.extend(docs)
 
-# Display chat history messages
-for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).write(msg["content"])
+            # Split and create embeddings for the documents
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
+            splits = text_splitter.split_documents(documents)
+            vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+            retriever = vectorstore.as_retriever()
 
-# Input for user query
-user_query = st.chat_input(placeholder="Ask anything from the database")
+            # System prompt for contextualizing the question
+            contextualize_q_system_prompt = (
+                "Given a chat history and the latest user question "
+                "which might reference context in the chat history, "
+                "formulate a standalone question which can be understood "
+                "without the chat history. Do NOT answer the question, "
+                "just reformulate it if needed and otherwise return it as is."
+            )
+            contextualize_q_prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", contextualize_q_system_prompt),
+                    MessagesPlaceholder("chat_history"),
+                    ("human", "{input}"),
+                ]
+            )
 
-# If user query is submitted
-if user_query:
-    add_message_to_history("user", user_query)
-    st.chat_message("user").write(user_query)
+            history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
 
-    # Generate response from agent
-    with st.chat_message("assistant"):
-        streamlit_callback = StreamlitCallbackHandler(st.container())
-        try:
-            response = agent.run(user_query, callbacks=[streamlit_callback])
-            add_message_to_history("assistant", response)
+            # System prompt for answering the question
+            system_prompt = (
+                "You are an assistant for question-answering tasks. "
+                "Use the following pieces of retrieved context to answer "
+                "the question. If you don't know the answer, say that you "
+                "don't know. Use three sentences maximum and keep the "
+                "answer concise."
+                "\n\n"
+                "{context}"
+            )
+            qa_prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    MessagesPlaceholder("chat_history"),
+                    ("human", "{input}"),
+                ]
+            )
 
-            # Ensure the response is in tabular format
-            if isinstance(response, list):
-                if all(isinstance(i, tuple) for i in response) and len(response) > 0:
-                    # Assuming the first tuple contains the headers
-                    headers = [f"Column {i+1}" for i in range(len(response[0]))]
-                    df = pd.DataFrame(response, columns=headers)
-                    st.dataframe(df.style.set_properties(**{'color': 'white', 'background-color': 'black'}))
-                else:
-                    st.write("The response is not in tabular format.")
-            else:
-                st.write("The response is not in tabular format.")
-                
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
+            question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+
+            def get_session_history(session: str) -> BaseChatMessageHistory:
+                if session not in st.session_state.store:
+                    st.session_state.store[session] = ChatMessageHistory()
+                return st.session_state.store[session]
+
+            conversational_rag_chain = RunnableWithMessageHistory(
+                rag_chain,
+                get_session_history,
+                input_messages_key="input",
+                history_messages_key="chat_history",
+                output_messages_key="answer"
+            )
+
+            user_input = st.text_input("Your question:")
+            if user_input:
+                session_history = get_session_history(session_id)
+                # Add the user's message to the history
+                session_history.add_message(HumanMessage(content=user_input))
+                # Invoke the chain with the user's input
+                response = conversational_rag_chain.invoke(
+                    {"input": user_input},
+                    config={
+                        "configurable": {"session_id": session_id}
+                    },
+                )
+                # Display the assistant's response
+                st.write("Assistant:", response['answer'])
+                # Add the assistant's response to the history
+                session_history.add_message(AIMessage(content=response['answer']))
+        else:
+            st.warning("No PDFs available in the 'pdfs' folder.")
+    else:
+        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
