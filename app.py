@@ -1,11 +1,16 @@
-from langchain.chains import RetrievalQA
-from langchain.llms import HuggingFaceLLM
-from langchain.prompts import PromptTemplate
-from langchain_community.vectorstores import FAISS
+import streamlit as st
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.vectorstores import FAISS  # Updated import
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_groq import ChatGroq
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 import os
-import streamlit as st
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -104,7 +109,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{'User' if msg.get('role') == 'user' else 'Assistant'}: {msg.get('content')}" for msg in history.messages])
+            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -119,7 +124,7 @@ col1, col2 = st.columns([2, 1])
 
 with col1:
     if api_key:
-        llm = HuggingFaceLLM(model_name="Gemma2-9b-It")
+        llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
 
         # Chat interface
         session_id = st.text_input("Session ID", value="default_session")
@@ -144,51 +149,69 @@ with col1:
             vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
             retriever = vectorstore.as_retriever()
 
-            # Set up the prompt for QA
-            prompt_template = PromptTemplate(
-                template="You are an assistant for question-answering tasks. Use the following context to answer the question: {context} Answer: {input}",
-                input_variables=["context", "input"]
+            # System prompt for contextualizing the question
+            contextualize_q_system_prompt = (
+                "Given a chat history and the latest user question "
+                "which might reference context in the chat history, "
+                "formulate a standalone question which can be understood "
+                "without the chat history. Do NOT answer the question, "
+                "just reformulate it if needed and otherwise return it as is."
+            )
+            contextualize_q_prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", contextualize_q_system_prompt),
+                    MessagesPlaceholder("chat_history"),
+                    ("human", "{input}"),
+                ]
             )
 
-            question_answer_chain = RetrievalQA(
-                llm=llm,
-                retriever=retriever,
-                combine_docs_chain=prompt_template
+            history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+
+            # System prompt for answering the question
+            system_prompt = (
+                "You are an assistant for question-answering tasks. "
+                "Use the following pieces of retrieved context to answer "
+                "the question. If you don't know the answer, say that you "
+                "don't know. Use three sentences maximum and keep the "
+                "answer concise."
+                "\n\n"
+                "{context}"
+            )
+            qa_prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    MessagesPlaceholder("chat_history"),
+                    ("human", "{input}"),
+                ]
             )
 
-            # Manage history and responses
-            def conversational_rag_chain(input_text: str, session_id: str):
-                session_history = get_session_history(session_id)
-                # Simulate retrieval and QA chain
-                response = question_answer_chain({"context": "Context from retriever", "input": input_text})
-                session_history.add_user_message(input_text)
-                session_history.add_ai_message(response)
-                return response
+            question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-            def get_session_history(session: str):
+            def get_session_history(session: str) -> BaseChatMessageHistory:
                 if session not in st.session_state.store:
                     st.session_state.store[session] = ChatMessageHistory()
                 return st.session_state.store[session]
 
-            # Display the full chat history
-            st.markdown("### Conversation History")
-            session_history = get_session_history(session_id)
+            conversational_rag_chain = RunnableWithMessageHistory(
+                rag_chain,
+                get_session_history,
+                input_messages_key="input",
+                history_messages_key="chat_history",
+                output_messages_key="answer"
+            )
 
-            for message in session_history.messages:
-                role = 'User' if message.get('role') == 'user' else 'Assistant'
-                st.markdown(f"**{role}:** {message.get('content')}")
-
-            user_input = st.text_area("Your question:", key="user_input")
-
-            if st.button("Send"):
-                if user_input:
-                    response = conversational_rag_chain(user_input, session_id)
-                    st.session_state.user_input = ""  # Clear input field after submission
-                    st.experimental_rerun()  # Refresh to show new messages in the chat history
+            user_input = st.text_input("Your question:")
+            if user_input:
+                session_history = get_session_history(session_id)
+                response = conversational_rag_chain.invoke(
+                    {"input": user_input},
+                    config={
+                        "configurable": {"session_id": session_id}
+                    },
+                )
+                st.write("Assistant:", response['answer'])
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
         st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
-
-with col2:
-    st.write("Sidebar content")
