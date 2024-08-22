@@ -112,10 +112,11 @@ with st.sidebar:
 
     # Download button for the selected session
     if selected_session:
-        history = st.session_state.store.get(selected_session, None)
-        if history:
+        # Ensure session history is initialized
+        session_history = st.session_state.store.get(selected_session, None)
+        if session_history:
             # Convert history to a text format
-            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in session_history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -233,7 +234,8 @@ with col1:
                         traceback.print_exc()  # Print stack trace for debugging
 
                 # Display chat history
-                if session_history:
+                if session_id in st.session_state.store:
+                    session_history = st.session_state.store[session_id]
                     for message in session_history.messages:
                         if message.role == "user":
                             st.chat_message("user").write(message.content)
@@ -242,6 +244,5 @@ with col1:
 
         else:
             st.write("No PDFs available to process.")
-
     else:
         st.error("API key not set. Please check your environment configuration.")
