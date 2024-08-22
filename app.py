@@ -43,6 +43,8 @@ st.markdown("""
         border: none;
         color: white;
         cursor: pointer;
+        padding: 5px 10px; /* Optional: add padding for better appearance */
+        border-radius: 5px; /* Optional: add border-radius for rounded corners */
     }
     .download-button:hover, .delete-button:hover {
         background-color: red;
@@ -119,7 +121,7 @@ with st.sidebar:
 
             # Display session history directly below the download button
             st.subheader("Session History")
-            st.text_area("Chat History", session_text, height=200, disabled=True)  # Displaying as a text area for better readability
+            st.text_area("Chat History", session_text, height=600, disabled=True)  # Displaying as a text area for better readability
         else:
             st.write("No chat history available for download.")
     else:
