@@ -1,8 +1,7 @@
-import os
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS  # Updated import
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -11,6 +10,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+import os
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -204,19 +204,13 @@ with col1:
             user_input = st.text_input("Your question:")
             if user_input:
                 session_history = get_session_history(session_id)
-                # Add the user's message to the history
-                session_history.add_message(HumanMessage(content=user_input))
-                # Invoke the chain with the user's input
                 response = conversational_rag_chain.invoke(
                     {"input": user_input},
                     config={
                         "configurable": {"session_id": session_id}
                     },
                 )
-                # Display the assistant's response
                 st.write("Assistant:", response['answer'])
-                # Add the assistant's response to the history
-                session_history.add_message(AIMessage(content=response['answer']))
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
