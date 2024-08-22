@@ -1,20 +1,14 @@
 import streamlit as st
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.message_histories import BaseChatMessageHistory
-import os
+from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
+from langchain.message_histories import ChatMessageHistory
 
 # Ensure the pdfs folder exists
+import os
 os.makedirs("pdfs", exist_ok=True)
 
 # Set up embeddings
+# Example embeddings setup (replace with actual implementation)
+from langchain_huggingface import HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Set up Streamlit layout
@@ -78,10 +72,8 @@ st.markdown("""
 with st.sidebar:
     st.header("Available PDFs")
     with st.expander("Manage PDFs", expanded=True):
-        # Upload PDFs in the expandable section
         uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
 
-        # Process and save uploaded PDFs to the "pdfs" folder
         if uploaded_files:
             for uploaded_file in uploaded_files:
                 file_path = os.path.join("pdfs", uploaded_file.name)
@@ -89,7 +81,6 @@ with st.sidebar:
                     file.write(uploaded_file.getvalue())
             st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
 
-        # Display and download PDFs alphabetically
         pdf_files = sorted(os.listdir("pdfs"))
         if pdf_files:
             for pdf in pdf_files:
@@ -116,16 +107,13 @@ with st.sidebar:
             st.write("No PDFs available.")
 
     st.header("Chat History")
-    # Dropdown for selecting session
     session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
-    # Download button for the selected session
     if selected_session:
         history = st.session_state.store.get(selected_session, None)
         if history:
-            # Convert history to a text format
-            session_text = "\n".join([f"{type(msg).__name__}: {msg.content}" for msg in history.messages])
+            session_text = "\n".join([f"{type(msg).__name__}: {msg['content']}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -142,14 +130,11 @@ with col1:
     if api_key:
         llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
 
-        # Chat interface
         session_id = st.text_input("Session ID", value="default_session")
 
-        # Statefully manage chat history
         if 'store' not in st.session_state:
             st.session_state.store = {}
 
-        # Load all PDFs from the "pdfs" folder
         pdf_files = sorted([os.path.join("pdfs", f) for f in os.listdir("pdfs") if f.endswith(".pdf")])
 
         if pdf_files:
@@ -159,13 +144,11 @@ with col1:
                 docs = loader.load()
                 documents.extend(docs)
 
-            # Split and create embeddings for the documents
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
             splits = text_splitter.split_documents(documents)
             vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
             retriever = vectorstore.as_retriever()
 
-            # System prompt for contextualizing the question
             contextualize_q_system_prompt = (
                 "Given a chat history and the latest user question "
                 "which might reference context in the chat history, "
@@ -183,7 +166,6 @@ with col1:
 
             history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
 
-            # System prompt for answering the question
             system_prompt = (
                 "You are an assistant for question-answering tasks. "
                 "Use the following pieces of retrieved context to answer "
@@ -204,7 +186,7 @@ with col1:
             question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
             rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-            def get_session_history(session: str) -> BaseChatMessageHistory:
+            def get_session_history(session: str) -> ChatMessageHistory:
                 if session not in st.session_state.store:
                     st.session_state.store[session] = ChatMessageHistory()
                 return st.session_state.store[session]
@@ -217,14 +199,12 @@ with col1:
                 output_messages_key="answer"
             )
 
-            # Display chat history
             chat_container = st.empty()
             chat_html = ""
 
             user_input = st.text_input("Your question:")
             if user_input:
                 session_history = get_session_history(session_id)
-                # Add user message to history
                 session_history.add_message({'content': user_input, 'type': 'user'})
 
                 response = conversational_rag_chain.invoke(
@@ -233,15 +213,15 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
-                # Display the response and add it to the chat history
                 response_text = response['answer']
                 session_history.add_message({'content': response_text, 'type': 'assistant'})
 
-                # Update chat display
                 chat_html = ""
                 for message in session_history.messages:
-                    role = type(message).__name__.lower()
-                    chat_html += f"<div class='chat-message {'user-message' if role == 'humanmessage' else 'assistant-message'}'>{message.content}</div>"
+                    if message['type'] == 'user':
+                        chat_html += f"<div class='chat-message user-message'>{message['content']}</div>"
+                    else:
+                        chat_html += f"<div class='chat-message assistant-message'>{message['content']}</div>"
 
                 chat_container.markdown(chat_html, unsafe_allow_html=True)
         else:
