@@ -207,7 +207,9 @@ with col1:
                 output_messages_key="answer"
             )
 
-            user_input = st.text_input("Your question:")
+            # Conversational chat interface
+            user_input = st.chat_input("Ask a question...")
+
             if user_input:
                 session_history = get_session_history(session_id)
                 response = conversational_rag_chain.invoke(
@@ -216,7 +218,14 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
-                st.write("Assistant:", response['answer'])
+                session_history.add("user", user_input)
+                session_history.add("assistant", response['answer'])
+
+            # Display chat history in a conversational style
+            if session_id in st.session_state.store:
+                for message in st.session_state.store[session_id].messages:
+                    st.chat_message(message.role, message.content)
+
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
