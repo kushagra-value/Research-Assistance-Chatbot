@@ -2,8 +2,9 @@ import streamlit as st
 from langchain.chains import RetrievalQA, LLMChain
 from langchain.prompts import ChatPromptTemplate
 
-# New or updated import for chat history management
-from langchain.chat import MessageHistory  # Replace with actual module and class
+# Check for correct module for message history
+# Replace `MessageHistory` with the correct class or module name
+from langchain.memory import MessageHistory  # Example, replace with actual class
 
 # Ensure the pdfs folder exists
 import os
