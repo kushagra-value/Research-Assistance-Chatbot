@@ -8,6 +8,7 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.message_histories import BaseChatMessageHistory
 import os
 
 # Ensure the pdfs folder exists
@@ -242,4 +243,8 @@ with col1:
                     role = type(message).__name__.lower()
                     chat_html += f"<div class='chat-message {'user-message' if role == 'humanmessage' else 'assistant-message'}'>{message.content}</div>"
 
-                chat_container.markdown(f"<div class='chat-container'>{chat_html}</div>", unsafe_allow_html=True)
+                chat_container.markdown(chat_html, unsafe_allow_html=True)
+        else:
+            st.write("No PDFs available for chat.")
+    else:
+        st.write("Groq API key is missing. Please set the API key.")
