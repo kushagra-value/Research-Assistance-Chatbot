@@ -3,10 +3,8 @@ from langchain.chains import create_history_aware_retriever, create_retrieval_ch
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -126,7 +124,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{msg.get('type', 'unknown')}: {msg.get('content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{type(msg).__name__}: {msg.content}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -241,7 +239,7 @@ with col1:
                 # Update chat display
                 chat_html = ""
                 for message in session_history.messages:
-                    role = message.get('type', 'unknown')
-                    chat_html += f"<div class='chat-message {'user-message' if role == 'user' else 'assistant-message'}'>{message.get('content', 'No content')}</div>"
+                    role = type(message).__name__.lower()
+                    chat_html += f"<div class='chat-message {'user-message' if role == 'humanmessage' else 'assistant-message'}'>{message.content}</div>"
 
                 chat_container.markdown(f"<div class='chat-container'>{chat_html}</div>", unsafe_allow_html=True)
