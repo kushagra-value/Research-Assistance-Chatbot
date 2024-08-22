@@ -2,8 +2,6 @@ import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
-from langchain_community.chat_message_histories import InMemoryChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -109,7 +107,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -194,9 +192,9 @@ with col1:
             question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
             rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-            def get_session_history(session: str) -> BaseChatMessageHistory:
+            def get_session_history(session: str):
                 if session not in st.session_state.store:
-                    st.session_state.store[session] = InMemoryChatMessageHistory()
+                    st.session_state.store[session] = []
                 return st.session_state.store[session]
 
             conversational_rag_chain = RunnableWithMessageHistory(
@@ -216,8 +214,8 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
-                session_history.messages.append({"role": "user", "content": user_input})
-                session_history.messages.append({"role": "assistant", "content": response['answer']})
+                session_history.append({"role": "user", "content": user_input})
+                session_history.append({"role": "assistant", "content": response['answer']})
                 st.write("Assistant:", response['answer'])
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
