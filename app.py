@@ -119,7 +119,7 @@ with st.sidebar:
 
             # Display session history directly below the download button
             st.subheader("Session History")
-            st.text_area("Chat History", session_text, height=600, disabled=False)  # Displaying as a text area for better readability
+            st.text_area("Chat History", session_text, height=600, disabled=True)
         else:
             st.write("No chat history available for download.")
     else:
