@@ -25,7 +25,7 @@ st.title("Research Assistance Chatbot")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for button styling and chat history
+# Custom CSS for button styling
 st.markdown("""
     <style>
     .pdf-row {
@@ -55,29 +55,7 @@ st.markdown("""
         width: 20px;
         height: 20px;
     }
-    .chat-history {
-        width: 100%;
-        height: 600px;
-        overflow-y: scroll;
-        background-color: #f1f1f1;
-        color: black;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        font-family: 'Sans-serif';
-        white-space: pre-wrap;
-    }
     </style>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var textArea = document.querySelector('.chat-history');
-        if (textArea) {
-            textArea.addEventListener('keydown', function(event) {
-                event.preventDefault();
-            });
-        }
-    });
-    </script>
 """, unsafe_allow_html=True)
 
 # Sidebar for available PDFs and chat history
@@ -141,7 +119,7 @@ with st.sidebar:
 
             # Display session history directly below the download button
             st.subheader("Session History")
-            st.markdown(f'<textarea class="chat-history" readonly>{session_text}</textarea>', unsafe_allow_html=True)
+            st.text_area("Chat History", session_text, height=600, disabled=False)  # Displaying as a text area for better readability
         else:
             st.write("No chat history available for download.")
     else:
