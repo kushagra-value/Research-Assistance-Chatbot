@@ -1,12 +1,11 @@
-import os
-import streamlit as st
 from langchain.chains import RetrievalQA
+from langchain.llms import HuggingFaceLLM
+from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
+import os
+import streamlit as st
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -120,7 +119,7 @@ col1, col2 = st.columns([2, 1])
 
 with col1:
     if api_key:
-        llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
+        llm = HuggingFaceLLM(model_name="Gemma2-9b-It")
 
         # Chat interface
         session_id = st.text_input("Session ID", value="default_session")
@@ -145,35 +144,22 @@ with col1:
             vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
             retriever = vectorstore.as_retriever()
 
-            # System prompt for contextualizing the question
-            system_prompt = (
-                "You are an assistant for question-answering tasks. "
-                "Use the following pieces of retrieved context to answer "
-                "the question. If you don't know the answer, say that you "
-                "don't know. Use three sentences maximum and keep the "
-                "answer concise."
-                "\n\n"
-                "{context}"
-            )
-            qa_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
+            # Set up the prompt for QA
+            prompt_template = PromptTemplate(
+                template="You are an assistant for question-answering tasks. Use the following context to answer the question: {context} Answer: {input}",
+                input_variables=["context", "input"]
             )
 
-            question_answer_chain = RetrievalQA.from_chain_type(
+            question_answer_chain = RetrievalQA(
                 llm=llm,
                 retriever=retriever,
-                chain_type="stuff",
-                prompt=qa_prompt
+                prompt=prompt_template
             )
 
-            # Manually manage history and chains
+            # Manage history and responses
             def conversational_rag_chain(input_text: str, session_id: str):
                 session_history = get_session_history(session_id)
-                # Simulating retrieval and QA chain
+                # Simulate retrieval and QA chain
                 response = question_answer_chain.run({
                     "context": "Context from retriever",
                     "input": input_text
