@@ -1,7 +1,6 @@
 import os
 import streamlit as st
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain, create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -163,7 +162,11 @@ with col1:
                 ]
             )
 
-            history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+            history_aware_retriever = create_retrieval_chain(
+                llm,
+                retriever,
+                contextualize_q_prompt
+            )
 
             # System prompt for answering the question
             system_prompt = (
@@ -184,20 +187,24 @@ with col1:
             )
 
             question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
             def get_session_history(session: str):
                 if session not in st.session_state.store:
                     st.session_state.store[session] = ChatMessageHistory()
                 return st.session_state.store[session]
 
-            conversational_rag_chain = RunnableWithMessageHistory(
-                rag_chain,
-                get_session_history,
-                input_messages_key="input",
-                history_messages_key="chat_history",
-                output_messages_key="answer"
-            )
+            # Manually manage history and chains
+            def conversational_rag_chain(input_text: str, session_id: str):
+                session_history = get_session_history(session_id)
+                # Simulating retrieval and QA chain
+                retrieved_context = history_aware_retriever.invoke({"input": input_text})
+                response = question_answer_chain.invoke({
+                    "context": retrieved_context,
+                    "input": input_text
+                })
+                session_history.add_user_message(input_text)
+                session_history.add_ai_message(response['answer'])
+                return response['answer']
 
             # Display the full chat history
             st.markdown("### Conversation History")
@@ -211,14 +218,7 @@ with col1:
 
             if st.button("Send"):
                 if user_input:
-                    response = conversational_rag_chain.invoke(
-                        {"input": user_input},
-                        config={
-                            "configurable": {"session_id": session_id}
-                        },
-                    )
-                    session_history.add_user_message(user_input)  # Add user input to history
-                    session_history.add_ai_message(response['answer'])  # Add AI response to history
+                    response = conversational_rag_chain(user_input, session_id)
                     st.session_state.user_input = ""  # Clear input field after submission
                     st.experimental_rerun()  # Refresh to show new messages in the chat history
         else:
