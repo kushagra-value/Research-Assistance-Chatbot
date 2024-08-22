@@ -64,7 +64,7 @@ st.markdown("""
         padding: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
-        font-family: monospace;
+        font-family: 'Sans-serif';
         white-space: pre-wrap;
     }
     </style>
