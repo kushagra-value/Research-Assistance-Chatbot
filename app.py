@@ -126,7 +126,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{msg.__class__.__name__}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -226,7 +226,7 @@ with col1:
             if user_input:
                 session_history = get_session_history(session_id)
                 # Add user message to history
-                session_history.add_message({'role': 'user', 'content': user_input})
+                session_history.add_message({'content': user_input, 'type': 'user'})
 
                 response = conversational_rag_chain.invoke(
                     {"input": user_input},
@@ -236,18 +236,12 @@ with col1:
                 )
                 # Display the response and add it to the chat history
                 response_text = response['answer']
-                session_history.add_message({'role': 'assistant', 'content': response_text})
+                session_history.add_message({'content': response_text, 'type': 'assistant'})
 
                 # Update chat display
                 chat_html = ""
                 for message in session_history.messages:
-                    if message.role == 'user':
-                        chat_html += f"<div class='chat-message user-message'>{message.content}</div>"
-                    else:
-                        chat_html += f"<div class='chat-message assistant-message'>{message.content}</div>"
+                    role = "user" if getattr(message, '__class__.__name__', None) == 'HumanMessage' else 'assistant'
+                    chat_html += f"<div class='chat-message {'user-message' if role == 'user' else 'assistant-message'}'>{message.content}</div>"
 
                 chat_container.markdown(f"<div class='chat-container'>{chat_html}</div>", unsafe_allow_html=True)
-        else:
-            st.warning("No PDFs available in the 'pdfs' folder.")
-    else:
-        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
