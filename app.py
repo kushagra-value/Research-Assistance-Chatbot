@@ -103,7 +103,10 @@ with st.sidebar:
 
     st.header("Chat History")
     # Dropdown for selecting session
-    session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
+    if 'store' not in st.session_state:
+        st.session_state.store = {}
+
+    session_options = list(st.session_state.store.keys())
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
     # Download button for the selected session
