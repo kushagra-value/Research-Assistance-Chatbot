@@ -4,14 +4,11 @@ from langchain.chains import create_history_aware_retriever, create_retrieval_ch
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.schema import BaseMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_groq import ChatGroq
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -110,7 +107,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{'User' if isinstance(msg, BaseMessage) and msg.role == 'user' else 'Assistant'}: {msg.content}" for msg in history.messages])
+            session_text = "\n".join([f"{'User' if msg.get('role') == 'user' else 'Assistant'}: {msg.get('content')}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -189,7 +186,7 @@ with col1:
             question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
             rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-            def get_session_history(session: str) -> BaseChatMessageHistory:
+            def get_session_history(session: str):
                 if session not in st.session_state.store:
                     st.session_state.store[session] = ChatMessageHistory()
                 return st.session_state.store[session]
@@ -207,8 +204,8 @@ with col1:
             session_history = get_session_history(session_id)
 
             for message in session_history.messages:
-                role = 'User' if hasattr(message, 'role') and message.role == 'user' else 'Assistant'
-                st.markdown(f"**{role}:** {message.content}")
+                role = 'User' if message.get('role') == 'user' else 'Assistant'
+                st.markdown(f"**{role}:** {message.get('content')}")
 
             user_input = st.text_area("Your question:", key="user_input")
 
