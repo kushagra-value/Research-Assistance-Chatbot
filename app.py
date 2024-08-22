@@ -1,8 +1,7 @@
 import os
 import streamlit as st
-from langchain.chains import create_retrieval_chain, create_stuff_documents_chain
+from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -147,28 +146,6 @@ with col1:
             retriever = vectorstore.as_retriever()
 
             # System prompt for contextualizing the question
-            contextualize_q_system_prompt = (
-                "Given a chat history and the latest user question "
-                "which might reference context in the chat history, "
-                "formulate a standalone question which can be understood "
-                "without the chat history. Do NOT answer the question, "
-                "just reformulate it if needed and otherwise return it as is."
-            )
-            contextualize_q_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", contextualize_q_system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
-            )
-
-            history_aware_retriever = create_retrieval_chain(
-                llm,
-                retriever,
-                contextualize_q_prompt
-            )
-
-            # System prompt for answering the question
             system_prompt = (
                 "You are an assistant for question-answering tasks. "
                 "Use the following pieces of retrieved context to answer "
@@ -186,25 +163,29 @@ with col1:
                 ]
             )
 
-            question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-
-            def get_session_history(session: str):
-                if session not in st.session_state.store:
-                    st.session_state.store[session] = ChatMessageHistory()
-                return st.session_state.store[session]
+            question_answer_chain = RetrievalQA.from_chain_type(
+                llm=llm,
+                retriever=retriever,
+                chain_type="stuff",
+                prompt=qa_prompt
+            )
 
             # Manually manage history and chains
             def conversational_rag_chain(input_text: str, session_id: str):
                 session_history = get_session_history(session_id)
                 # Simulating retrieval and QA chain
-                retrieved_context = history_aware_retriever.invoke({"input": input_text})
-                response = question_answer_chain.invoke({
-                    "context": retrieved_context,
+                response = question_answer_chain.run({
+                    "context": "Context from retriever",
                     "input": input_text
                 })
                 session_history.add_user_message(input_text)
-                session_history.add_ai_message(response['answer'])
-                return response['answer']
+                session_history.add_ai_message(response)
+                return response
+
+            def get_session_history(session: str):
+                if session not in st.session_state.store:
+                    st.session_state.store[session] = ChatMessageHistory()
+                return st.session_state.store[session]
 
             # Display the full chat history
             st.markdown("### Conversation History")
