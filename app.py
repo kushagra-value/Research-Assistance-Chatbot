@@ -201,17 +201,32 @@ with col1:
                 output_messages_key="answer"
             )
 
-            user_input = st.text_input("Your question:")
-            if user_input:
-                session_history = get_session_history(session_id)
-                response = conversational_rag_chain.invoke(
-                    {"input": user_input},
-                    config={
-                        "configurable": {"session_id": session_id}
-                    },
-                )
-                st.write("Assistant:", response['answer'])
+            # Display the full chat history
+            st.markdown("### Conversation History")
+            session_history = get_session_history(session_id)
+            for message in session_history.messages:
+                if message.role == "user":
+                    st.markdown(f"**You:** {message.content}")
+                else:
+                    st.markdown(f"**Assistant:** {message.content}")
+
+            user_input = st.text_area("Your question:", key="user_input")
+
+            if st.button("Send"):
+                if user_input:
+                    response = conversational_rag_chain.invoke(
+                        {"input": user_input},
+                        config={
+                            "configurable": {"session_id": session_id}
+                        },
+                    )
+                    st.session_state.user_input = ""  # Clear input field after submission
+                    st.write("Assistant:", response['answer'])
+                    st.experimental_rerun()  # Refresh to show new messages in the chat history
         else:
-            st.warning("No PDFs available in the 'pdfs' folder.")
+            st.write("No PDFs available to chat with. Please upload some PDFs.")
     else:
-        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
+        st.write("API key is not configured. Please set the GROQ_API_KEY environment variable.")
+
+with col2:
+    st.write("Sidebar content")
