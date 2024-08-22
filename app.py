@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -10,7 +11,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-import os
+from langchain_core.schema import HumanMessage, AIMessage
 
 # Ensure the pdfs folder exists
 os.makedirs("pdfs", exist_ok=True)
@@ -109,7 +110,7 @@ with st.sidebar:
         history = st.session_state.store.get(selected_session, None)
         if history:
             # Convert history to a text format
-            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
+            session_text = "\n".join([f"{'User' if isinstance(msg, HumanMessage) else 'Assistant'}: {msg.content}" for msg in history.messages])
             st.download_button(
                 label="Download Session",
                 data=session_text,
@@ -204,11 +205,14 @@ with col1:
             # Display the full chat history
             st.markdown("### Conversation History")
             session_history = get_session_history(session_id)
+
             for message in session_history.messages:
-                if message.role == "user":
+                if isinstance(message, HumanMessage):
                     st.markdown(f"**You:** {message.content}")
-                else:
+                elif isinstance(message, AIMessage):
                     st.markdown(f"**Assistant:** {message.content}")
+                else:
+                    st.markdown(f"**Unknown:** {message.content}")
 
             user_input = st.text_area("Your question:", key="user_input")
 
@@ -220,13 +224,14 @@ with col1:
                             "configurable": {"session_id": session_id}
                         },
                     )
+                    session_history.add_user_message(user_input)  # Add user input to history
+                    session_history.add_ai_message(response['answer'])  # Add AI response to history
                     st.session_state.user_input = ""  # Clear input field after submission
-                    st.write("Assistant:", response['answer'])
                     st.experimental_rerun()  # Refresh to show new messages in the chat history
         else:
-            st.write("No PDFs available to chat with. Please upload some PDFs.")
+            st.warning("No PDFs available in the 'pdfs' folder.")
     else:
-        st.write("API key is not configured. Please set the GROQ_API_KEY environment variable.")
+        st.error("Groq API Key not found in the environment. Please set it in your environment variables.")
 
 with col2:
     st.write("Sidebar content")
