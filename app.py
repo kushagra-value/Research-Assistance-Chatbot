@@ -25,7 +25,7 @@ st.title("Research Assistance Chatbot")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for button styling
+# Custom CSS for button styling and chat messages
 st.markdown("""
     <style>
     .pdf-row {
@@ -54,6 +54,23 @@ st.markdown("""
     .icon {
         width: 20px;
         height: 20px;
+    }
+    .chat-container {
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+    }
+    .chat-message {
+        margin-bottom: 10px;
+    }
+    .user-message {
+        text-align: right;
+        color: #007bff;
+    }
+    .assistant-message {
+        text-align: left;
+        color: #28a745;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -201,11 +218,16 @@ with col1:
                 output_messages_key="answer"
             )
 
+            # Display chat history
+            chat_container = st.empty()
+            chat_html = ""
+
             user_input = st.text_input("Your question:")
             if user_input:
                 session_history = get_session_history(session_id)
-                # Use the appropriate method to add messages to the history
+                # Add user message to history
                 session_history.add_message({'role': 'user', 'content': user_input})
+
                 response = conversational_rag_chain.invoke(
                     {"input": user_input},
                     config={
@@ -213,8 +235,18 @@ with col1:
                     },
                 )
                 # Display the response and add it to the chat history
-                st.write("Assistant:", response['answer'])
-                session_history.add_message({'role': 'assistant', 'content': response['answer']})
+                response_text = response['answer']
+                session_history.add_message({'role': 'assistant', 'content': response_text})
+
+                # Update chat display
+                chat_html = ""
+                for message in session_history.messages:
+                    if message.role == 'user':
+                        chat_html += f"<div class='chat-message user-message'>{message.content}</div>"
+                    else:
+                        chat_html += f"<div class='chat-message assistant-message'>{message.content}</div>"
+
+                chat_container.markdown(f"<div class='chat-container'>{chat_html}</div>", unsafe_allow_html=True)
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
