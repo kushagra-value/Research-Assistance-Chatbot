@@ -28,6 +28,13 @@ st.title("Research Assistance Chatbot")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
+# Initialize session_state
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+
+if 'store' not in st.session_state:
+    st.session_state.store = {}
+
 # Custom CSS for button styling
 st.markdown("""
     <style>
@@ -104,9 +111,6 @@ with st.sidebar:
 
     st.header("Chat History")
     # Dropdown for selecting session
-    if 'store' not in st.session_state:
-        st.session_state.store = {}
-
     session_options = list(st.session_state.store.keys())
     selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
 
@@ -217,6 +221,9 @@ with col1:
 
                 if user_input:
                     session_history = get_session_history(session_id)
+                    # Ensure messages list is initialized
+                    if 'messages' not in st.session_state:
+                        st.session_state.messages = []
                     st.session_state.messages.append({"role": "user", "content": user_input})
                     st.chat_message("user").write(user_input)
 
@@ -241,7 +248,8 @@ with col1:
                             st.chat_message("user").write(message.content)
                         elif message.role == "assistant":
                             st.chat_message("assistant").write(message.content)
-
+            else:
+                st.write("No documents loaded.")
         else:
             st.write("No PDFs available to process.")
     else:
