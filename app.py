@@ -25,7 +25,7 @@ st.title("Research Assistance Chatbot")
 # Retrieve Groq API Key from environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
-# Custom CSS for button styling
+# Custom CSS for button styling and chat interface
 st.markdown("""
     <style>
     .pdf-row {
@@ -55,25 +55,38 @@ st.markdown("""
         width: 20px;
         height: 20px;
     }
+    .chat-box {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: #f9f9f9;
+    }
+    .chat-message {
+        margin-bottom: 10px;
+    }
+    .assistant-message {
+        color: blue;
+    }
+    .user-message {
+        color: green;
+        text-align: right;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Sidebar for available PDFs and chat history
+# Sidebar for available PDFs
 with st.sidebar:
     st.header("Available PDFs")
     with st.expander("Manage PDFs", expanded=True):
-        # Upload PDFs in the expandable section
         uploaded_files = st.file_uploader("Add a PDF", type="pdf", accept_multiple_files=True)
-
-        # Process and save uploaded PDFs to the "pdfs" folder
         if uploaded_files:
             for uploaded_file in uploaded_files:
                 file_path = os.path.join("pdfs", uploaded_file.name)
                 with open(file_path, "wb") as file:
                     file.write(uploaded_file.getvalue())
             st.success(f"Uploaded {len(uploaded_files)} file(s) to the 'pdfs' folder.")
-
-        # Display and download PDFs alphabetically
         pdf_files = sorted(os.listdir("pdfs"))
         if pdf_files:
             for pdf in pdf_files:
@@ -99,32 +112,6 @@ with st.sidebar:
         else:
             st.write("No PDFs available.")
 
-    st.header("Chat History")
-    # Dropdown for selecting session
-    session_options = list(st.session_state.store.keys()) if 'store' in st.session_state else []
-    selected_session = st.selectbox("Select Session", session_options, index=0 if session_options else None)
-
-    # Download button for the selected session
-    if selected_session:
-        history = st.session_state.store.get(selected_session, None)
-        if history:
-            # Convert history to a text format
-            session_text = "\n".join([f"{getattr(msg, 'role', 'unknown')}: {getattr(msg, 'content', 'No content')}" for msg in history.messages])
-            st.download_button(
-                label="Download Session",
-                data=session_text,
-                file_name=f"{selected_session}_chat_history.txt",
-                mime="text/plain",
-            )
-
-            # Display session history directly below the download button
-            st.subheader("Session History")
-            st.text_area("Chat History", session_text, height=200, disabled=True)  # Displaying as a text area for better readability
-        else:
-            st.write("No chat history available for download.")
-    else:
-        st.write("No chat session selected.")
-
 # Main content (right column)
 col1, col2 = st.columns([2, 1])
 
@@ -138,6 +125,24 @@ with col1:
         # Statefully manage chat history
         if 'store' not in st.session_state:
             st.session_state.store = {}
+
+        def get_session_history(session: str) -> BaseChatMessageHistory:
+            if session not in st.session_state.store:
+                st.session_state.store[session] = ChatMessageHistory()
+            return st.session_state.store[session]
+
+        session_history = get_session_history(session_id)
+
+        # Display chat history
+        st.markdown("### Chat History")
+        with st.container():
+            st.markdown('<div class="chat-box">', unsafe_allow_html=True)
+            for msg in session_history.messages:
+                if msg.role == "assistant":
+                    st.markdown(f'<div class="chat-message assistant-message">{msg.content}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="chat-message user-message">{msg.content}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # Load all PDFs from the "pdfs" folder
         pdf_files = sorted([os.path.join("pdfs", f) for f in os.listdir("pdfs") if f.endswith(".pdf")])
@@ -194,11 +199,6 @@ with col1:
             question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
             rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-            def get_session_history(session: str) -> BaseChatMessageHistory:
-                if session not in st.session_state.store:
-                    st.session_state.store[session] = ChatMessageHistory()
-                return st.session_state.store[session]
-
             conversational_rag_chain = RunnableWithMessageHistory(
                 rag_chain,
                 get_session_history,
@@ -207,16 +207,21 @@ with col1:
                 output_messages_key="answer"
             )
 
+            # User input for chat
             user_input = st.text_input("Your question:")
             if user_input:
-                session_history = get_session_history(session_id)
                 response = conversational_rag_chain.invoke(
                     {"input": user_input},
                     config={
                         "configurable": {"session_id": session_id}
                     },
                 )
-                st.write("Assistant:", response['answer'])
+                # Update chat history with user input and assistant's response
+                session_history.add_user_message(user_input)
+                session_history.add_assistant_message(response['answer'])
+
+                # Display the updated chat history
+                st.experimental_rerun()
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
