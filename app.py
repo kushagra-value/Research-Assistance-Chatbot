@@ -2,7 +2,7 @@ import streamlit as st
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
-from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_community.chat_message_histories import InMemoryChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
@@ -196,7 +196,7 @@ with col1:
 
             def get_session_history(session: str) -> BaseChatMessageHistory:
                 if session not in st.session_state.store:
-                    st.session_state.store[session] = ChatMessageHistory()
+                    st.session_state.store[session] = InMemoryChatMessageHistory()
                 return st.session_state.store[session]
 
             conversational_rag_chain = RunnableWithMessageHistory(
@@ -216,8 +216,8 @@ with col1:
                         "configurable": {"session_id": session_id}
                     },
                 )
-                session_history.append_message("user", user_input)
-                session_history.append_message("assistant", response['answer'])
+                session_history.messages.append({"role": "user", "content": user_input})
+                session_history.messages.append({"role": "assistant", "content": response['answer']})
                 st.write("Assistant:", response['answer'])
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
