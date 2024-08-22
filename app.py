@@ -1,4 +1,5 @@
 import streamlit as st
+import uuid
 from pathlib import Path
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -127,9 +128,11 @@ with col1:
     if api_key:
         llm = ChatGroq(groq_api_key=api_key, model_name="Gemma2-9b-It")
 
-        # Statefully manage chat history
-        if 'store' not in st.session_state:
-            st.session_state.store = {}
+        # Generate a unique session ID if not already present
+        if "session_id" not in st.session_state:
+            st.session_state.session_id = str(uuid.uuid4())
+
+        session_id = st.session_state.session_id
 
         # Load all PDFs from the "pdfs" folder
         pdf_files = sorted([os.path.join("pdfs", f) for f in os.listdir("pdfs") if f.endswith(".pdf")])
@@ -199,33 +202,26 @@ with col1:
                 output_messages_key="answer"
             )
 
-            # Display chat history messages
-            if 'messages' not in st.session_state:
-                st.session_state.messages = [{"role": "assistant", "content": "How can I help you?"}]
-
-            for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
-
             # Input for user query
             user_input = st.text_input("Your question:")
 
             if user_input:
+                session_history = get_session_history(session_id)
                 st.session_state.messages.append({"role": "user", "content": user_input})
                 st.chat_message("user").write(user_input)
 
-                # Generate response from agent
-                with st.chat_message("assistant"):
-                    try:
-                        response = conversational_rag_chain.invoke(
-                            {"input": user_input},
-                            config={"configurable": {"session_id": session_id}}
-                        )
-                        st.session_state.messages.append({"role": "assistant", "content": response['answer']})
+                try:
+                    response = conversational_rag_chain.invoke(
+                        {"input": user_input},
+                        config={"configurable": {"session_id": session_id}}
+                    )
+                    st.session_state.messages.append({"role": "assistant", "content": response['answer']})
 
-                        # Display the response
-                        st.write("Assistant:", response['answer'])
-                    except Exception as e:
-                        st.error(f"An error occurred: {str(e)}")
+                    # Display the response
+                    st.chat_message("assistant").write(response['answer'])
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
+
         else:
             st.warning("No PDFs available in the 'pdfs' folder.")
     else:
