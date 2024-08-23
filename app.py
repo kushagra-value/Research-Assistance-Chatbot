@@ -119,27 +119,15 @@ with st.sidebar:
 
             # Display session history directly below the download button
             st.subheader("Session History")
-            # Use custom CSS to style the text area
-            st.markdown(
-                """
-                <style>
-                .custom-textarea {
-                    height: 600px;
-                    width: 100%;
-                    border: 1px solid #ddd;
-                    padding: 10px;
-                    box-sizing: border-box;
-                    overflow-y: auto;
-                    background-color: #f9f9f9;
-                    font-family: monospace;
-                    white-space: pre-wrap; /* Ensures text formatting is preserved */
-                }
-                </style>
-                <div class="custom-textarea">
-                {}
-                </div>
-                """.format(session_text.replace('\n', '<br>')),
-                unsafe_allow_html=True
+
+            # Use st.text_area to display the session history as a non-editable text box
+            st.text_area(
+                label="Chat History",
+                value=session_text,
+                height=400,  # Adjust the height as needed
+                max_chars=None,  # No limit on the number of characters
+                key="chat_history_display",  # Unique key for this text area
+                disabled=True,  # Make it non-editable
             )
         else:
             st.write("No chat history available for download.")
