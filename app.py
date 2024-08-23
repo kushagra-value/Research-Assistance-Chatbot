@@ -124,7 +124,7 @@ with st.sidebar:
             st.text_area(
                 label="Chat History",
                 value=session_text,
-                height=400,  # Adjust the height as needed
+                height=600,  # Adjust the height as needed
                 max_chars=None,  # No limit on the number of characters
                 key="chat_history_display",  # Unique key for this text area
                 disabled=True,  # Make it non-editable
