@@ -121,9 +121,9 @@ with st.sidebar:
             st.subheader("Session History")
             # Use custom CSS to style the text area
             st.markdown(
-                f"""
+                """
                 <style>
-                .custom-textarea {{
+                .custom-textarea {
                     height: 600px;
                     width: 100%;
                     border: 1px solid #ddd;
@@ -132,15 +132,15 @@ with st.sidebar:
                     overflow-y: auto;
                     background-color: #f9f9f9;
                     font-family: monospace;
-                }}
+                    white-space: pre-wrap; /* Ensures text formatting is preserved */
+                }
                 </style>
                 <div class="custom-textarea">
-                {session_text.replace('\n', '<br>')}
+                {}
                 </div>
-                """,
+                """.format(session_text.replace('\n', '<br>')),
                 unsafe_allow_html=True
             )
-            st.text_area("Chat History", session_text, height=600, disabled=True, max_chars=None)
         else:
             st.write("No chat history available for download.")
     else:
